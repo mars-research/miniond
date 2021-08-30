@@ -23,7 +23,7 @@ It enables the use of arbitrary Linux distributions on CloudLab/Emulab, while st
 It's designed to be simple and can be compiled into a single statically-linked binary with [musl libc](https://www.musl-libc.org).
 
 The official implementation of [Emulab Clientside](https://wiki.emulab.net/wiki/Emulab/wiki/ClientSideStuff) is complex, consisting of multiple binaries and scripts with intricate dependencies.
-It makes a lot of assumptions about the filesystem layout and utilize numerous non-standard directories (see the *Notes on Emulab Clientside* section), making installation on a clean OS extremely difficult.
+It makes a lot of assumptions about the filesystem layout and utilizes numerous non-standard directories (see the *Notes on Emulab Clientside* section), making installation on a clean OS extremely difficult.
 The goal of `miniond` is to provide a simple implementation of Emulab Clientside that is easy to install on top of a clean OS.
 
 ## Features
