@@ -19,18 +19,23 @@ pub struct TmccConfig {
     ///
     /// By default this will be automatically discovered.
     boss: Option<String>,
+
+    /// Whether to report shutdowns to the testbed.
+    report_shutdown: bool,
 }
 
 impl Default for TmccConfig {
     fn default() -> Self {
         Self {
             boss: None,
+            report_shutdown: true,
         }
     }
 }
 
 /// The `tmcc` applet.
 pub struct Tmcc {
+    config: Config,
     tmcc: TmccClient,
     tx: Sender,
     account_initialized: AtomicBool,
@@ -48,6 +53,7 @@ impl Tmcc {
         let tmcc = TmccClient::new(boss)?;
 
         Ok(Box::new(Self {
+            config,
             tmcc,
             tx,
             account_initialized: AtomicBool::new(false),
@@ -70,7 +76,7 @@ impl Applet for Tmcc {
 
             match message {
                 Message::Shutdown(reason) => {
-                    if reason == ShutdownReason::Signal {
+                    if reason == ShutdownReason::Signal && self.config.tmcc.report_shutdown {
                         log::info!("Informing testbed that we are shutting down...");
                         self.tmcc.state(&State::Shutdown).await.unwrap();
                     }
