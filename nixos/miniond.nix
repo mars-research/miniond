@@ -82,6 +82,8 @@ in {
 
       description = "Emulab Testbed Agent";
       serviceConfig = {
+        TimeoutStopSec = 10;
+
         ExecStart = "${pkgs.miniond}/bin/miniond -f ${configFile}";
         ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
       };
