@@ -29,7 +29,7 @@ impl<'a> Response<'a> {
 
         let mut rest = line;
 
-        let regex = Regex::new(r#"^(?P<key>[A-Z]+)(=("(?P<quoted_value>[^"]*)"|(?P<value>[^ ]+)))?($| (?P<rest>.+)$)"#).unwrap();
+        let regex = Regex::new(r#"^(?P<key>[A-Z]+)(=("(?P<quoted_value>[^"]*)"|'(?P<singly_quoted_value>[^']*)'|(?P<value>[^ ]+)))?($| (?P<rest>.+)$)"#).unwrap();
 
         loop {
             let captures = regex.captures(rest).ok_or(Error::TmcdBadLine {
@@ -43,6 +43,8 @@ impl<'a> Response<'a> {
                 kv.insert(key, value.as_str());
             } else if let Some(quoted_value) = captures.name("quoted_value") {
                 kv.insert(key, quoted_value.as_str());
+            } else if let Some(singly_quoted_value) = captures.name("singly_quoted_value") {
+                kv.insert(key, singly_quoted_value.as_str());
             } else {
                 if !first {
                     return Err(Error::TmcdBadLine {
@@ -119,6 +121,14 @@ mod tests {
         assert_eq!("bash", *r.get("SHELL").unwrap());
         assert_eq!(20001, r.get_parsed::<u16>("UID").unwrap());
         assert_eq!(12345, r.get_parsed::<u16>("GID").unwrap());
+    }
+
+    #[test]
+    fn test_singly_quoted() {
+        let r = Response::parse(r#"ROOTPUBKEY='ssh-rsa omitted root@boss.wisc.cloudlab.us'"#)
+            .expect("Failed to parse");
+
+        assert_eq!("ssh-rsa omitted root@boss.wisc.cloudlab.us", *r.get("ROOTPUBKEY").unwrap());
     }
 
     #[test]
