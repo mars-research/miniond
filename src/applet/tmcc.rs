@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 
 use crate::config::Config;
-use crate::tmcc::{Tmcc as TmccClient, State, discover};
+use crate::tmcc::{Tmcc as TmccClient, State, BossNode, TMCD_PORT};
 use crate::error::{Error, Result};
 use super::{Applet, Sender, Message, ShutdownReason};
 
@@ -20,6 +20,9 @@ pub struct TmccConfig {
     /// By default this will be automatically discovered.
     boss: Option<String>,
 
+    /// The TMCD port.
+    port: u16,
+
     /// Whether to report shutdowns to the testbed.
     report_shutdown: bool,
 }
@@ -28,6 +31,7 @@ impl Default for TmccConfig {
     fn default() -> Self {
         Self {
             boss: None,
+            port: TMCD_PORT,
             report_shutdown: true,
         }
     }
@@ -43,14 +47,14 @@ pub struct Tmcc {
 
 impl Tmcc {
     pub(super) async fn new(config: Config, tx: Sender) -> Result<Box<dyn Applet>> {
-        log::info!("Looking for the boss node...");
-        let boss = if let Some(boss) = &config.tmcc.boss {
-            boss.clone()
+        let tmcc = if let Some(boss) = &config.tmcc.boss {
+            let port = config.tmcc.port;
+            let boss = BossNode::HostPort((boss.to_string(), port));
+            TmccClient::new(boss).await?
         } else {
-            discover().await?
+            log::info!("Looking for the boss node...");
+            TmccClient::discover().await?
         };
-
-        let tmcc = TmccClient::new(boss)?;
 
         Ok(Box::new(Self {
             config,

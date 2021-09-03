@@ -6,14 +6,16 @@
 //!
 //! - <https://wiki.emulab.net/wiki/TmcdApi>
 
+mod discovery;
 mod parser;
 
 use std::convert::AsRef;
-use std::env;
+use std::net::SocketAddr;
 
-use resolv_conf::{Config as ResolvConf, ScopedIp};
-use tokio::fs::read_to_string;
-use tokio::net::TcpStream;
+use tokio::net::{
+    TcpStream,
+    lookup_host,
+};
 use tokio::io::{
     BufStream,
     AsyncBufReadExt,
@@ -35,33 +37,58 @@ pub const TMCD_PORT: u16 = 7777;
 /// <https://gitlab.flux.utah.edu/emulab/emulab-devel/-/blob/223096154f87ac7708a0f87a1bb63a20ef0fbde7/clientside/lib/tmcd/tmcd.h#L49>.
 pub const TMCD_VERSION: usize = 44;
 
+/// A boss node.
+pub enum BossNode {
+    /// A host-port tuple.
+    HostPort((String, u16)),
+
+    /*
+    /// A well-typed SocketAddr.
+    SocketAddr(SocketAddr),
+    */
+}
+
+impl BossNode {
+    fn host(host: String) -> Self {
+        Self::HostPort((host, TMCD_PORT))
+    }
+
+    async fn to_socket_addr(self) -> Result<SocketAddr> {
+        match self {
+            Self::HostPort(host_port) => {
+                if let Some(sa) = lookup_host(host_port.clone()).await?.next() {
+                    Ok(sa)
+                } else {
+                    Err(Error::EmulabBossUnresolvable { host_port })
+                }
+            }
+            /*
+            Self::SocketAddr(sa) => Ok(sa),
+            */
+        }
+    }
+}
+
 /// A TMCD client.
 pub struct Tmcc {
-    host: String,
-    port: u16,
+    boss: SocketAddr,
 }
 
 impl Tmcc {
-    pub fn new(host: String) -> Result<Self> {
-        if host.find(':').is_some() {
-            let parts: Vec<&str> = host.split(':').collect();
-            if parts.len() != 2 {
-                return Err(Error::TmcdBadBossNode { host });
-            }
+    /// Create a new testbed master control client with a specific boss node.
+    pub async fn new(boss: BossNode) -> Result<Self> {
+        let sa = boss.to_socket_addr().await?;
 
-            let port: u16 = parts[1].parse()
-                .or(Err(Error::TmcdBadBossNode { host: host.clone() }))?;
+        Ok(Self {
+            boss: sa,
+        })
+    }
 
-            Ok(Self {
-                host: parts[0].to_string(),
-                port,
-            })
-        } else {
-            Ok(Self {
-                host,
-                port: TMCD_PORT,
-            })
-        }
+    /// Automatically discover the boss node.
+    pub async fn discover() -> Result<Self> {
+        let boss = discovery::discover().await?;
+
+        Self::new(boss).await
     }
 
     /// Retrieve accounts that should be configured.
@@ -264,7 +291,7 @@ impl Tmcc {
     }
 
     async fn connect(&self) -> Result<BufStream<TcpStream>> {
-        let stream = TcpStream::connect((self.host.as_str(), self.port)).await?;
+        let stream = TcpStream::connect(self.boss).await?;
         Ok(BufStream::new(stream))
     }
 }
@@ -332,70 +359,5 @@ impl Command {
     pub fn finalize(mut self) -> Vec<u8> {
         self.bytes.push(' ' as u8);
         self.bytes
-    }
-}
-
-/// Discover the boss node automatically.
-pub async fn discover() -> Result<String> {
-    if let Ok(boss) = env::var("BOSSNODE") {
-        log::info!("Discovered boss node from BOSSNODE environment variable: {}", boss);
-        return Ok(boss);
-    }
-
-    let files = vec![
-        "/etc/testbed",
-        "/etc/emulab",
-        "/etc/rc.d/testbed",
-        "/usr/local/etc/testbed",
-        "/usr/local/etc/emulab",
-    ];
-
-    for file in files {
-        match read_to_string(&file).await {
-            Ok(boss) => {
-                let boss = boss.trim();
-
-                log::info!("Discovered boss node from {}: {}", file, boss);
-                return Ok(boss.to_string());
-            }
-            Err(_) => {}
-        }
-    }
-
-    if let Some(boss) = discover_from_resolv_conf().await {
-        log::info!("Discovered boss node from /etc/resolv.conf: {}", boss);
-        return Ok(boss);
-    }
-
-    Err(Error::TmcdFailedToDiscoverBossNode)
-}
-
-async fn discover_from_resolv_conf() -> Option<String> {
-    let conf = read_to_string("/etc/resolv.conf").await.map_err(|e| {
-        log::warn!("Error trying to read /etc/resolv.conf: {}", e);
-        e
-    }).ok()?;
-
-    let parsed = ResolvConf::parse(&conf).map_err(|e| {
-        log::warn!("Error trying to parse /etc/resolv.conf: {}", e);
-        e
-    }).ok()?;
-
-    if parsed.nameservers.is_empty() {
-        return None;
-    }
-
-    let first_dns = &parsed.nameservers[0];
-    match first_dns {
-        ScopedIp::V4(addr) => {
-            if addr.is_link_local() || addr.is_loopback() {
-                None
-            } else {
-                Some(addr.to_string())
-            }
-        }
-        ScopedIp::V6(addr, _) => {
-            Some(addr.to_string())
-        }
     }
 }

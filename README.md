@@ -97,6 +97,7 @@ enable = true          # default: true
 #     https://wiki.emulab.net/wiki/TmcdApi
 #
 # boss = boss.wisc.cloudlab.us
+# port = 7777
 ```
 
 Run `miniond` on boot, preferably as a system service:

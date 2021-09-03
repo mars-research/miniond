@@ -85,11 +85,25 @@ pub enum Error {
     #[snafu(display("Unmet system requirements"))]
     UnmetSystemRequirements,
 
+    /// The SRV record indicates that a boss node is definitely not available.
+    ///
+    /// This is returned when a SRV lookup returns "." as the result.
+    ///
+    /// - <https://datatracker.ietf.org/doc/html/rfc2782>
+    #[snafu(display("SRV record indicates the absence of a boss node"))]
+    EmulabBossSrvNotAvailable,
+
+    #[snafu(display("The supplied boss node cannot be resolved: {:?}", host_port))]
+    EmulabBossUnresolvable { host_port: (String, u16) },
+
     #[snafu(display("I/O error: {}", error))]
     IoError { error: io::Error },
 
     #[snafu(display("OS error: {}", error))]
     NixError { error: nix::errno::Errno },
+
+    #[snafu(display("DNS lookup error: {}", error))]
+    DnsLookupError { error: trust_dns_resolver::error::ResolveError },
 }
 
 impl From<io::Error> for Error {
@@ -101,5 +115,11 @@ impl From<io::Error> for Error {
 impl From<nix::errno::Errno> for Error {
     fn from(error: nix::errno::Errno) -> Self {
         Self::NixError { error }
+    }
+}
+
+impl From<trust_dns_resolver::error::ResolveError> for Error {
+    fn from(error: trust_dns_resolver::error::ResolveError) -> Self {
+        Self::DnsLookupError { error }
     }
 }
