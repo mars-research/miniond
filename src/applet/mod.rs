@@ -31,10 +31,11 @@ use crate::account::Accounts;
 use crate::config::Config;
 use crate::error::Result;
 
-pub use autouser::AutouserConfig;
-pub use automount::AutomountConfig;
-pub use autohost::AutohostConfig;
-pub use tmcc::TmccConfig;
+pub use autouser::{Autouser, AutouserConfig};
+pub use automount::{Automount, AutomountConfig};
+pub use autohost::{Autohost, AutohostConfig};
+pub use tmcc::{Tmcc, TmccConfig};
+pub use signal::Signal;
 
 const CHANNEL_CAPACITY: usize = 100;
 
@@ -90,15 +91,15 @@ trait Applet {
 }
 
 /// Run a single applet with automatic restart.
-async fn run_applet(applet: Box<dyn Applet>) {
+async fn run_applet(name: &'static str, applet: Box<dyn Applet>) {
     loop {
         match applet.main().await {
             Ok(()) => {
-                log::debug!("Applet exited.");
+                log::debug!("Applet {} exited.", name);
                 break;
             }
             Err(e) => {
-                log::error!("Applet exited with error: {}", e);
+                log::error!("Applet {} exited with error: {}", name, e);
                 log::warn!("Trying to respawn...");
             }
         }
@@ -110,21 +111,21 @@ pub async fn run(config: Config) -> Result<()> {
     let (tx, rx) = broadcast::channel(CHANNEL_CAPACITY);
     drop(rx);
 
-    let signal = signal::Signal::new(tx.clone());
-    let autouser = autouser::Autouser::new(config.clone(), tx.clone()).await?;
-    let automount = automount::Automount::new(config.clone(), tx.clone()).await?;
-    let autohost = autohost::Autohost::new(config.clone(), tx.clone()).await?;
-    let tmcc = tmcc::Tmcc::new(config.clone(), tx.clone()).await?;
+    let signal = Signal::new(tx.clone());
+    let autouser = Autouser::new(config.clone(), tx.clone()).await?;
+    let automount = Automount::new(config.clone(), tx.clone()).await?;
+    let autohost = Autohost::new(config.clone(), tx.clone()).await?;
+    let tmcc = Tmcc::new(config.clone(), tx.clone()).await?;
 
     log::info!("Starting all applets...");
 
     tokio::join!(
-        run_applet(signal),
+        run_applet("signal", signal),
 
-        run_applet(tmcc),
-        run_applet(autouser),
-        run_applet(automount),
-        run_applet(autohost),
+        run_applet("tmcc", tmcc),
+        run_applet("autouser", autouser),
+        run_applet("automount", automount),
+        run_applet("autohost", autohost),
     );
 
     Ok(())
