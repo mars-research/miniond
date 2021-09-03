@@ -182,7 +182,61 @@ impl Tmcc {
             line.clear();
         }
 
+        // also get root account info
+        let root = self.root_account().await?;
+        accounts.users.insert("root".to_string(), root);
+
         Ok(accounts)
+    }
+
+    /// Retrieve root account information.
+    async fn root_account(&self) -> Result<User> {
+        use users::os::unix::UserExt;
+
+        let mut socket = self.connect().await?;
+
+        Command::new("localization")
+            .send(&mut socket).await?;
+
+        let root_sys = users::get_user_by_uid(0)
+            .ok_or(Error::TmcdNoSuchUser { login: "root".to_string() })?;
+
+        let mut root = User::new(
+            "root".to_string(),
+            0, 0,
+            "".to_string(),
+        );
+        root.home(root_sys.home_dir().to_path_buf());
+
+        let mut line = String::new();
+        loop {
+            let len = socket.read_line(&mut line).await?;
+
+            if len == 0 {
+                break;
+            }
+
+            // We currently do not handle multi-line responses, so
+            // this is expected to fail for the ROOTKEY lines.
+            match Response::parse(line.trim()) {
+                Ok(r) => {
+                    if let Ok(pubkey) = r.get_parsed("ROOTPUBKEY") {
+                        root.add_ssh_key(pubkey);
+                    } else {
+                        log::debug!("Encountered first line without public key - skipping the rest");
+                        break;
+                    }
+                }
+                Err(e) => {
+                    log::debug!("Silently ignoring LOCALIZATION parse error: {:?}", e);
+                    break;
+                }
+            }
+
+            line.clear();
+        }
+
+        Ok(root)
     }
 
     /// Retrieve mounts that should be configured.
