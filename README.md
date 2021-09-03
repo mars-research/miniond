@@ -1,5 +1,7 @@
 # miniond
 
+[![Build](https://github.com/mars-research/miniond/workflows/build.yml/badge.svg)](https://github.com/mars-research/miniond/actions/workflows/build.yml)
+
 ```
 [2021-08-29T22:58:26Z INFO ] miniond 0.1.0 starting
 [2021-08-29T22:58:26Z INFO ] Looking for the boss node...
