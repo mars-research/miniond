@@ -24,12 +24,12 @@
       ];
     };
 
-    rustPlatform = pkgs.makeRustPlatform {
-      rustc = rustNightly;
-      cargo = rustNightly;
-    };
-
-    miniond = rustPlatform.buildRustPackage {
+    buildMiniond = pkgs: let
+      rustPlatform = pkgs.makeRustPlatform {
+        rustc = rustNightly;
+        cargo = rustNightly;
+      };
+    in rustPlatform.buildRustPackage {
       pname = "miniond";
       version = "0.1.0";
 
@@ -44,7 +44,10 @@
       cargoLock.lockFile = ./Cargo.lock;
     };
   in rec {
-    packages.miniond = miniond;
+    packages = {
+      miniond = buildMiniond pkgs;
+      miniondStatic = buildMiniond pkgs.pkgsStatic;
+    };
     defaultPackage = self.packages.${system}.miniond;
 
     devShell = pkgs.mkShell {
