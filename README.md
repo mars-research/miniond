@@ -167,7 +167,6 @@ In NixOS, to force GRUB to install to a partition:
 `miniond` is an early prototype.
 It behaves differently from the official Emulab Clientside in the following manners:
 
-- [File system cleanup](https://gitlab.flux.utah.edu/emulab/emulab-devel/-/blob/master/clientside/tmcc/linux/prepare) prior to imaging has not yet been implemented. If you create a disk image, sensitive files may be left over.
 - `miniond` creates project groups with lower-case names (`project-pg0` instead of `project-PG0`). The reason is that group names with upper-case letters are unsupported by upstream `shadow-utils`.
 
 ## Licensing
