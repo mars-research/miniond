@@ -55,5 +55,23 @@
         rustNightly
       ];
     };
-  });
+  }) // {
+    nixosConfigurations.testSystem = mars-std.inputs.nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./nixos/emulab.nix
+        ./nixos/miniond.nix
+
+        ({ pkgs, lib, ... }: {
+          nixpkgs.overlays = [
+            (_: super: {
+              miniond = self.packages."x86_64-linux".miniond;
+            })
+          ];
+          hardware.emulab.enable = true;
+          boot.isContainer = true;
+        })
+      ];
+    };
+  };
 }
