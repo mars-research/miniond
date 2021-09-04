@@ -1,6 +1,6 @@
 # Emulab NixOS module
 
-{ pkgs, lib, config, ... }:
+{ pkgs, lib, config, modulesPath, ... }:
 with lib;
 let
   cfg = config.hardware.emulab;
@@ -23,6 +23,10 @@ let
     systemctl start kexec.target
   '';
 in {
+  imports = [
+    (modulesPath + "/profiles/all-hardware.nix")
+  ];
+
   options = {
     hardware.emulab = {
       enable = mkEnableOption "Enable various configurations for Emulab testbeds";
