@@ -1,4 +1,4 @@
-name: Build
+name: NixOS
 on:
   pull_request:
   push:
@@ -13,14 +13,5 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      # Normal
-      - run: nix build .#miniond -L
-
-      # Static
-      - run: |
-          nix build .#miniondStatic -o ./result-static -L
-          echo "artifact_static=$(readlink ./result-static)" >> $GITHUB_ENV
-      - uses: actions/upload-artifact@v2
-        with:
-          name: miniond-static
-          path: "${{ env.artifact_static }}/bin/miniond"
+      # NixOS modules
+      - run: nix build .#nixosConfigurations.testSystem.config.system.build.toplevel -L
