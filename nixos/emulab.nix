@@ -53,6 +53,9 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # https://docs.cloudlab.us/hardware.html
+    nix.nrBuildUsers = mkDefault 128;
+
     services.miniond.enable = true;
 
     boot.loader.grub.device = mkDefault "/dev/sda1";
