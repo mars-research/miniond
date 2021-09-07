@@ -13,6 +13,7 @@ use super::{Applet, Sender, Message};
 
 /// `autouser` applet configuration.
 #[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct AutomountConfig {
     /// Whether to enable the applet or not.
     enable: bool,

@@ -3,30 +3,65 @@
 { pkgs, lib, config, ... }:
 with lib;
 let
+  cfg = config.services.miniond;
+
   configType = types.submodule {
     options = {
       autouser = {
         enable = mkOption {
-          description = "Automatically configure users and SSH keys";
+          description = "Automatically configure users and SSH keys.";
           type = types.bool;
           default = true;
         };
-        "admin-group" = mkOption {
-          description = "Group of the admin user";
+        admin-group = mkOption {
+          description = "Group of the admin user.";
           type = types.str;
           default = "wheel";
         };
       };
       automount = {
         enable = mkOption {
-          description = "Automatically mount configured NFS shares";
+          description = "Automatically mount configured NFS shares.";
           type = types.bool;
           default = true;
         };
         backend = mkOption {
-          description = "Method to mount NFS shares";
+          description = "Method to mount NFS shares.";
           type = types.enum [ "systemd" ];
           default = "systemd";
+        };
+      };
+      autohost = {
+        enable = mkOption {
+          description = "Automatically set system hostname.";
+          type = types.bool;
+          default = true;
+        };
+        etc_hosts = mkOption {
+          description = "Path to the /etc/hosts file.";
+          type = types.nullOr types.path;
+          default = null;
+        };
+      };
+      tmcc = {
+        boss = mkOption {
+          description = ''
+            The boss node.
+
+            By default this will be automatically discovered.
+          '';
+          type = types.nullOr types.str;
+          default = null;
+        };
+        port = mkOption {
+          description = "The TMCD port.";
+          type = types.nullOr types.ints.unsigned;
+          default = null;
+        };
+        report-shutdown = mkOption {
+          description = "Whether to report shutdowns to the testbed.";
+          type = types.bool;
+          default = true;
         };
       };
       systemd = {
@@ -39,23 +74,14 @@ let
     };
   };
 
-  configFile = let
-    c = cfg.configuration;
-    renderBool = b: if b then "true" else "false";
-  in pkgs.writeText "miniond.toml" ''
-    [autouser]
-    enable = ${renderBool c.autouser.enable}
-    admin-group = "${c.autouser.admin-group}"
-
-    [automount]
-    enable = ${renderBool c.automount.enable}
-    backend = "${c.automount.backend}"
-
-    [systemd]
-    unit-dir = "${c.systemd.unit-dir}"
+  # https://stackoverflow.com/a/58022572
+  configFile = pkgs.runCommand "miniond.conf" {
+    config = builtins.toJSON cfg.configuration;
+  } ''
+    echo "$config" \
+    | ${pkgs.jq}/bin/jq 'walk( if type == "object" then with_entries(select(.value != null)) else . end)' \
+    | ${pkgs.remarshal}/bin/remarshal --if json --of toml > $out
   '';
-
-  cfg = config.services.miniond;
 in {
   options = {
     services.miniond = {
@@ -73,6 +99,8 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    environment.etc."miniond.conf".source = configFile;
+
     systemd.services.miniond = {
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
@@ -84,7 +112,7 @@ in {
       serviceConfig = {
         TimeoutStopSec = 10;
 
-        ExecStart = "${pkgs.miniond}/bin/miniond -f ${configFile}";
+        ExecStart = "${pkgs.miniond}/bin/miniond -f /etc/miniond.conf";
         ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
       };
     };

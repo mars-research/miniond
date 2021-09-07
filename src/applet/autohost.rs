@@ -15,6 +15,7 @@ use super::{Applet, Sender, Message};
 
 /// `autohost` applet configuration.
 #[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct AutohostConfig {
     /// Whether to enable the applet or not.
     enable: bool,

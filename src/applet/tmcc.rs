@@ -14,6 +14,7 @@ use crate::error::{Error, Result};
 use super::{Applet, Sender, Message, ShutdownReason};
 
 #[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct TmccConfig {
     /// The boss node.
     ///
@@ -24,6 +25,7 @@ pub struct TmccConfig {
     port: u16,
 
     /// Whether to report shutdowns to the testbed.
+    #[serde(rename = "report-shutdown")]
     report_shutdown: bool,
 }
 
