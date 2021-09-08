@@ -41,6 +41,8 @@ The goal of `miniond` is to provide a simple implementation of Emulab Clientside
 
 ### NixOS
 
+*A minimal prebuilt image is available on CloudLab. See `prebuilt-image.md` for details.*
+
 It's recomended to use the provided NixOS modules to set up the entire system for Emulab:
 
 ```nix
