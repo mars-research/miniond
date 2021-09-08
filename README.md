@@ -71,6 +71,9 @@ The following commands must be available in the PATH:
 The `bash` and `tcsh` shells should be installed and configured in `/etc/shells`.
 The "admin group" (normally `wheel` or `sudo`) should be configured to allow passwordless privilege escalation.
 
+Prebuilt statically-linked `miniond` binaries are available [here](https://github.com/mars-research/miniond/actions/workflows/build.yml).
+You can also build it yourself with `nix-build static.nix` or `nix build .#miniondStatic` (for Nix 2.4).
+
 To deploy `miniond`, create a file named `miniond.toml`:
 
 ```toml
