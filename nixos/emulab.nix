@@ -10,7 +10,7 @@ let
     ${builtins.concatStringsSep "\n" cfg.allowedImpurities}
   '';
 
-  prepareScript = pkgs.writeShellScript "emulab-reboot-prepare" ''
+  prepareScript = pkgs.writeShellScriptBin "emulab-reboot-prepare" ''
     set -euo pipefail
 
     ${pkgs.util-linux}/bin/wall "Imaging has been initiated on this node. The system is going to be rebooted."
@@ -48,6 +48,25 @@ in {
         type = types.listOf types.path;
         example = [ "/var/lib/experiment/some-stateful-stuff" ];
         default = [];
+      };
+
+      impurePrepareScript = mkOption {
+        description = ''
+          Install the filesystem cleanup script in the impure path.
+
+          Emulab requires that the cleanup script is accessible at
+          `/usr/local/etc/emulab/reboot_prepare`. If this option is
+          enabled, an activation script is added to create this impure
+          path when the system profile is activated.
+
+          In the CloudLab Wisconsin cluster the testbed is modified
+          to also run `emulab-reboot-prepare` from PATH so this is
+          not needed.
+
+          - https://groups.google.com/g/cloudlab-users/c/6fRdB7ykOFQ/m/1_HvTebRBgAJ
+        '';
+        type = types.bool;
+        default = true;
       };
     };
   };
@@ -91,10 +110,14 @@ in {
 
     # HACK: Inject the prepare script at the path Emulab expects.
     # This will not be necessary once <https://groups.google.com/g/cloudlab-users/c/6fRdB7ykOFQ/m/1_HvTebRBgAJ> is implemented
-    system.activationScripts.emulab-impure-prepare.text = ''
+    system.activationScripts.emulab-impure-prepare.text = if cfg.impurePrepareScript then ''
       echo "setting up Emulab prepare script..."
       mkdir -p /usr/local/etc/emulab
-      ln -sf ${prepareScript} /usr/local/etc/emulab/reboot_prepare
+      ln -sf ${prepareScript}/bin/emulab-reboot-prepare /usr/local/etc/emulab/reboot_prepare
+    '' else ''
+      rm -f /usr/local/etc/emulab
     '';
+
+    environment.systemPackages = [ prepareScript ];
   };
 }
