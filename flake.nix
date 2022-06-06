@@ -10,7 +10,7 @@
     supportedSystems = [ "x86_64-linux" ];
 
     # Rust nightly version.
-    nightlyVersion = "2021-08-01";
+    nightlyVersion = "2022-06-01";
   in mars-std.lib.eachSystem supportedSystems (system: let
     pkgs = mars-std.legacyPackages.${system};
     lib = pkgs.lib;
@@ -51,8 +51,8 @@
     defaultPackage = self.packages.${system}.miniond;
 
     devShell = pkgs.mkShell {
+      inputsFrom = [ defaultPackage ];
       nativeBuildInputs = with pkgs; [
-        rustNightly
       ];
     };
   }) // {

@@ -17,7 +17,7 @@ use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 
-use clap::Clap;
+use clap::Parser;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -51,7 +51,7 @@ fn init_logging() {
 }
 
 /// Alternative implementation of Emulab Clientside.
-#[derive(Debug, Clap)]
+#[derive(Debug, Parser)]
 #[clap(version = "0.1.0", author = "Zhaofeng Li <hello@zhaofeng.li>")]
 struct Opts {
     /// Path to the config file.

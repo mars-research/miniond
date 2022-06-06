@@ -76,6 +76,7 @@ pub struct User {
     /// Opaque serial number.
     ///
     /// This indicates when the account information is changed.
+    #[allow(dead_code)]
     serial: String,
 }
 
