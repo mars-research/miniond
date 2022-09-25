@@ -13,12 +13,8 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      # Normal
-      - run: nix build .#miniond -L
-
-      # Static
       - run: |
-          nix build .#miniondStatic -o ./result-static -L
+          nix build .#miniond -o ./result-static -L
           echo "artifact_static=$(readlink ./result-static)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v2
         with:

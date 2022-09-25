@@ -3,56 +3,51 @@
 
   inputs = {
     mars-std.url = "github:mars-research/mars-std";
+    crane.url = "github:ipetkov/crane";
   };
 
-  outputs = { self, mars-std, ... }: let
+  outputs = { self, mars-std, crane, ... }: let
     # System types to support.
     supportedSystems = [ "x86_64-linux" ];
 
     # Rust nightly version.
-    nightlyVersion = "2022-06-01";
+    nightlyVersion = "2022-09-15";
   in mars-std.lib.eachSystem supportedSystems (system: let
     pkgs = mars-std.legacyPackages.${system};
-    lib = pkgs.lib;
+
+    inherit (pkgs) lib;
+    inherit (pkgs.rust) toRustTargetSpec;
+
+    targetOverrides = {
+      "x86_64-linux" = "x86_64-unknown-linux-musl";
+    };
+
+    buildTarget = targetOverrides.${system} or (toRustTargetSpec pkgs.stdenv.hostPlatform);
 
     rustNightly = pkgs.rust-bin.nightly.${nightlyVersion}.default.override {
       extensions = [ "rust-src" "rust-analyzer-preview" ];
       targets = [
-        # FIXME: Other platforms
-        "x86_64-unknown-linux-gnu"
-        "x86_64-unknown-linux-musl"
+        (toRustTargetSpec pkgs.stdenv.hostPlatform)
+        buildTarget
       ];
     };
 
-    buildMiniond = pkgs: let
-      rustPlatform = pkgs.makeRustPlatform {
-        rustc = rustNightly;
-        cargo = rustNightly;
-      };
-    in rustPlatform.buildRustPackage {
-      pname = "miniond";
-      version = "0.1.0";
+    craneLib = (crane.mkLib pkgs).overrideToolchain rustNightly;
 
-      src = lib.cleanSourceWith {
-        filter = name: type: !(builtins.elem (baseNameOf name) ["target" "miniond"]);
-        src = lib.cleanSourceWith {
-          filter = lib.cleanSourceFilter;
-          src = ./.;
-        };
-      };
-
-      cargoLock.lockFile = ./Cargo.lock;
+    miniond = craneLib.buildPackage {
+      src = craneLib.cleanCargoSource ./.;
+      cargoExtraArgs = "--target ${buildTarget}";
     };
   in rec {
     packages = {
-      miniond = buildMiniond pkgs;
-      miniondStatic = buildMiniond pkgs.pkgsStatic;
+      inherit miniond;
     };
     defaultPackage = self.packages.${system}.miniond;
 
     devShell = pkgs.mkShell {
       inputsFrom = [ defaultPackage ];
       nativeBuildInputs = with pkgs; [
+        cargo-outdated
       ];
     };
   }) // {
